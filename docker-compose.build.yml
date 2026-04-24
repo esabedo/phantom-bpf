@@ -1,0 +1,15 @@
+services:
+  linux-build:
+    image: ubuntu:24.04
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+    command:
+      - bash
+      - -lc
+      - |
+        apt-get update
+        apt-get install -y bpftool clang cmake g++ libbpf-dev llvm make pkg-config
+        cmake -S /workspace -B /tmp/phantom-build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cmake --build /tmp/phantom-build --verbose
+        test -x /tmp/phantom-build/phantom-agent

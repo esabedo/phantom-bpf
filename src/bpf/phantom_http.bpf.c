@@ -18,6 +18,18 @@ struct {
   __type(value, __u64);
 } dropped_events SEC(".maps");
 
+struct recv_args {
+  struct sock *sk;
+  const char *payload;
+};
+
+struct {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 16384);
+  __type(key, __u64);
+  __type(value, struct recv_args);
+} active_recv SEC(".maps");
+
 static __always_inline void bump_dropped_events(void) {
   __u32 key = 0;
   __u64 *value = bpf_map_lookup_elem(&dropped_events, &key);
@@ -146,6 +158,27 @@ int BPF_KPROBE(handle_tcp_sendmsg, struct sock *sk, struct msghdr *msg, size_t s
 SEC("kprobe/tcp_recvmsg")
 int BPF_KPROBE(handle_tcp_recvmsg, struct sock *sk, struct msghdr *msg, size_t len) {
   const struct iovec *iov = BPF_CORE_READ(msg, msg_iter, __iov);
-  const char *payload = iov ? BPF_CORE_READ(iov, iov_base) : 0;
-  return submit_event(sk, len, PHANTOM_DIR_RECV, payload);
+  struct recv_args args = {
+    .sk = sk,
+    .payload = iov ? BPF_CORE_READ(iov, iov_base) : 0,
+  };
+  __u64 pid_tgid = bpf_get_current_pid_tgid();
+  bpf_map_update_elem(&active_recv, &pid_tgid, &args, BPF_ANY);
+  return 0;
+}
+
+SEC("kretprobe/tcp_recvmsg")
+int BPF_KRETPROBE(handle_tcp_recvmsg_return, long copied) {
+  __u64 pid_tgid = bpf_get_current_pid_tgid();
+  struct recv_args *args = bpf_map_lookup_elem(&active_recv, &pid_tgid);
+  if (!args) {
+    return 0;
+  }
+
+  if (copied > 0) {
+    submit_event(args->sk, (size_t)copied, PHANTOM_DIR_RECV, args->payload);
+  }
+
+  bpf_map_delete_elem(&active_recv, &pid_tgid);
+  return 0;
 }

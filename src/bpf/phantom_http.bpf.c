@@ -155,12 +155,25 @@ static __always_inline int submit_event(struct sock *sk, size_t bytes, __u32 dir
   return 0;
 }
 
+static __always_inline const char *read_iov_payload(struct msghdr *msg) {
+  struct iov_iter iter = {};
+  const struct iovec *iov = 0;
+  const char *payload = 0;
+
+  BPF_CORE_READ_INTO(&iter, msg, msg_iter);
+  BPF_CORE_READ_INTO(&iov, &iter, __iov);
+  if (iov) {
+    BPF_CORE_READ_INTO(&payload, iov, iov_base);
+  }
+
+  return payload;
+}
+
 SEC("kprobe/tcp_sendmsg")
 int BPF_KPROBE(handle_tcp_sendmsg, struct sock *sk, struct msghdr *msg, size_t size) {
-  const struct iovec *iov = BPF_CORE_READ(msg, msg_iter, __iov);
   struct io_args args = {
     .sk = sk,
-    .payload = iov ? BPF_CORE_READ(iov, iov_base) : 0,
+    .payload = read_iov_payload(msg),
   };
   __u64 pid_tgid = bpf_get_current_pid_tgid();
   bpf_map_update_elem(&active_send, &pid_tgid, &args, BPF_ANY);
@@ -185,10 +198,9 @@ int BPF_KRETPROBE(handle_tcp_sendmsg_return, long sent) {
 
 SEC("kprobe/tcp_recvmsg")
 int BPF_KPROBE(handle_tcp_recvmsg, struct sock *sk, struct msghdr *msg, size_t len) {
-  const struct iovec *iov = BPF_CORE_READ(msg, msg_iter, __iov);
   struct io_args args = {
     .sk = sk,
-    .payload = iov ? BPF_CORE_READ(iov, iov_base) : 0,
+    .payload = read_iov_payload(msg),
   };
   __u64 pid_tgid = bpf_get_current_pid_tgid();
   bpf_map_update_elem(&active_recv, &pid_tgid, &args, BPF_ANY);

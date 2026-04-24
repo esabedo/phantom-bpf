@@ -34,6 +34,7 @@ void test_event_conversion_and_json() {
   raw.pid = 100;
   raw.tid = 101;
   raw.bytes = 512;
+  raw.payload_size = 16;
   raw.direction = PHANTOM_DIR_SEND;
   raw.http_kind = PHANTOM_HTTP_REQUEST;
   raw.socket_cookie = 99;
@@ -47,8 +48,13 @@ void test_event_conversion_and_json() {
   raw.path[0] = '/';
   raw.path[1] = 'v';
   raw.path[2] = '1';
+  raw.payload_prefix[0] = 'G';
+  raw.payload_prefix[1] = 'E';
+  raw.payload_prefix[2] = 'T';
 
   const auto event = phantom::from_bpf_event(raw);
+  require(event.payload_size == 16, "event conversion should preserve payload size");
+  require(event.payload_prefix == "GET", "event conversion should preserve payload prefix");
   const auto json = phantom::to_json_line(event);
   require(json.find("\"direction\":\"send\"") != std::string::npos, "json should include send direction");
   require(json.find("\"http_kind\":\"request\"") != std::string::npos, "json should include request kind");

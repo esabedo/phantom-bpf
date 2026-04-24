@@ -138,16 +138,18 @@ static __always_inline int submit_event(struct sock *sk, size_t bytes, __u32 dir
   event->socket_cookie = sk ? bpf_get_socket_cookie(sk) : 0;
   event->http_kind = PHANTOM_HTTP_UNKNOWN;
   event->status_code = 0;
+  event->payload_size = 0;
   __builtin_memset(event->comm, 0, sizeof(event->comm));
   __builtin_memset(event->method, 0, sizeof(event->method));
   __builtin_memset(event->path, 0, sizeof(event->path));
+  __builtin_memset(event->payload_prefix, 0, sizeof(event->payload_prefix));
   bpf_get_current_comm(event->comm, sizeof(event->comm));
 
-  char prefix[128] = {};
   if (payload) {
-    long read = bpf_probe_read_user(prefix, sizeof(prefix), payload);
+    long read = bpf_probe_read_user(event->payload_prefix, sizeof(event->payload_prefix), payload);
     if (read == 0) {
-      parse_http_prefix(event, prefix);
+      event->payload_size = bytes < sizeof(event->payload_prefix) ? (__u32)bytes : sizeof(event->payload_prefix);
+      parse_http_prefix(event, event->payload_prefix);
     }
   }
 

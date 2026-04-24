@@ -27,12 +27,14 @@ struct HttpEvent {
   std::uint32_t pid{};
   std::uint32_t tid{};
   std::uint32_t bytes{};
+  std::uint32_t payload_size{};
   Direction direction{Direction::Unknown};
   HttpKind http_kind{HttpKind::Unknown};
   std::uint32_t status_code{};
   std::string comm;
   std::string method;
   std::string path;
+  std::string payload_prefix;
 };
 
 HttpEvent from_bpf_event(const phantom_http_event &event);

@@ -40,12 +40,14 @@ HttpEvent from_bpf_event(const phantom_http_event &event) {
   result.pid = event.pid;
   result.tid = event.tid;
   result.bytes = event.bytes;
+  result.payload_size = event.payload_size;
   result.direction = direction_from_raw(event.direction);
   result.http_kind = http_kind_from_raw(event.http_kind);
   result.status_code = event.status_code;
   result.comm = bounded_c_string(event.comm, sizeof(event.comm));
   result.method = bounded_c_string(event.method, sizeof(event.method));
   result.path = bounded_c_string(event.path, sizeof(event.path));
+  result.payload_prefix = bounded_c_string(event.payload_prefix, sizeof(event.payload_prefix));
   return result;
 }
 

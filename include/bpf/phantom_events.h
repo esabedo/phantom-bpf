@@ -9,6 +9,7 @@
 #define PHANTOM_HTTP_METHOD_MAX 8
 #define PHANTOM_HTTP_PATH_MAX 96
 #define PHANTOM_COMM_MAX 16
+#define PHANTOM_PAYLOAD_PREFIX_MAX 128
 
 enum phantom_direction {
   PHANTOM_DIR_UNKNOWN = 0,
@@ -32,7 +33,9 @@ struct phantom_http_event {
   __u32 direction;
   __u32 http_kind;
   __u32 status_code;
+  __u32 payload_size;
   char comm[PHANTOM_COMM_MAX];
   char method[PHANTOM_HTTP_METHOD_MAX];
   char path[PHANTOM_HTTP_PATH_MAX];
+  char payload_prefix[PHANTOM_PAYLOAD_PREFIX_MAX];
 };

@@ -1,6 +1,8 @@
 services:
   linux-build:
-    image: ubuntu:24.04
+    build:
+      context: .
+      dockerfile: Dockerfile.build
     working_dir: /workspace
     volumes:
       - .:/workspace:ro
@@ -8,8 +10,6 @@ services:
       - bash
       - -lc
       - |
-        apt-get update
-        apt-get install -y clang cmake g++ libbpf-dev linux-tools-generic llvm make pkg-config
         cmake -S /workspace -B /tmp/phantom-build -DCMAKE_BUILD_TYPE=RelWithDebInfo
         cmake --build /tmp/phantom-build --verbose
         test -x /tmp/phantom-build/phantom-agent

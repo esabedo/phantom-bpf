@@ -1,0 +1,16 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      clang \
+      cmake \
+      g++ \
+      libbpf-dev \
+      linux-tools-generic \
+      llvm \
+      make \
+      pkg-config \
+    && rm -rf /var/lib/apt/lists/*

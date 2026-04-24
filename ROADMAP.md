@@ -47,53 +47,53 @@ from eBPF to the C++ agent.
 
 ### 1.1 Scaffold
 
-- [ ] Create repository layout:
+- [x] Create repository layout:
   - `src/agent` for C++ userspace.
   - `src/bpf` for eBPF programs.
   - `include/phantom` for shared userspace headers.
   - `include/bpf` for shared kernel/userspace event contracts.
   - `cmake` for build helpers.
   - `.github/workflows` for CI.
-- [ ] Configure CMake with C++17, warning flags, and Linux-only guardrails.
-- [ ] Add libbpf discovery and generated skeleton build flow.
-- [ ] Add CO-RE `vmlinux.h` generation through `bpftool btf dump`.
-- [ ] Add developer documentation for build and runtime permissions.
+- [x] Configure CMake with C++17, warning flags, and Linux-only guardrails.
+- [x] Add libbpf discovery and generated skeleton build flow.
+- [x] Add CO-RE `vmlinux.h` generation through `bpftool btf dump`.
+- [x] Add developer documentation for build and runtime permissions.
 
 ### 1.2 Network Probes
 
-- [ ] Attach kprobe/kretprobe pairs to `tcp_sendmsg`.
-- [ ] Attach kprobe/kretprobe pairs to `tcp_recvmsg`.
-- [ ] Extract PID, TID, command name, socket pointer, direction, and byte count.
-- [ ] Keep verifier-friendly bounded payload reads.
-- [ ] Emit dropped-event counters for failed ring buffer reservations.
+- [x] Attach kprobe/kretprobe pairs to `tcp_sendmsg`.
+- [x] Attach kprobe/kretprobe pairs to `tcp_recvmsg`.
+- [x] Extract PID, TID, command name, socket pointer, direction, and byte count.
+- [x] Keep verifier-friendly bounded payload reads.
+- [x] Emit dropped-event counters for failed ring buffer reservations.
 
 ### 1.3 HTTP Parsing in Kernel
 
-- [ ] Implement bounded HTTP/1.1 method detection for `GET`, `POST`, `PUT`,
+- [x] Implement bounded HTTP/1.1 method detection for `GET`, `POST`, `PUT`,
   `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
-- [ ] Extract the request path prefix within a fixed maximum size.
-- [ ] Detect response status lines where possible.
-- [ ] Keep full parsing and reassembly out of kernel until Phase 2.
+- [x] Extract the request path prefix within a fixed maximum size.
+- [x] Detect response status lines where possible.
+- [x] Keep full parsing and reassembly out of kernel until Phase 2.
 
 ### 1.4 Userspace Ring Buffer
 
-- [ ] Generate libbpf skeleton and load it from the C++ agent.
-- [ ] Poll `BPF_MAP_TYPE_RINGBUF`.
-- [ ] Convert raw BPF events into typed C++ records.
-- [ ] Print structured JSON lines for early validation.
-- [ ] Handle SIGINT/SIGTERM gracefully.
+- [x] Generate libbpf skeleton and load it from the C++ agent.
+- [x] Poll `BPF_MAP_TYPE_RINGBUF`.
+- [x] Convert raw BPF events into typed C++ records.
+- [x] Print structured JSON lines for early validation.
+- [x] Handle SIGINT/SIGTERM gracefully.
 
 ### 1.5 CI/CD Alpha
 
-- [ ] Build BPF objects on GitHub Actions Ubuntu runner.
-- [ ] Build the C++ agent with CMake.
-- [ ] Run a smoke test that verifies the agent binary exists.
-- [ ] Keep CI dependency installation explicit and reproducible.
+- [x] Build BPF objects on GitHub Actions Ubuntu runner.
+- [x] Build the C++ agent with CMake.
+- [x] Run a smoke test that verifies the agent binary exists.
+- [x] Keep CI dependency installation explicit and reproducible.
 
 ### 1.6 Release v0.1.0
 
-- [ ] Commit each completed feature group.
-- [ ] Tag `v0.1.0` after Phase 1 is buildable in CI.
+- [x] Commit each completed feature group.
+- [x] Tag `v0.1.0` after Phase 1 is buildable in CI.
 
 ## Phase 2: Async Processing & Correlation (v0.2.0)
 

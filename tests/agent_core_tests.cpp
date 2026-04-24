@@ -7,6 +7,7 @@
 #include "phantom/bounded_queue.hpp"
 #include "phantom/correlator.hpp"
 #include "phantom/event.hpp"
+#include "phantom/http_aggregator.hpp"
 #include "phantom/json_exporter.hpp"
 #include "phantom/pipeline.hpp"
 
@@ -119,6 +120,47 @@ void test_pipeline_counts_correlations() {
   require(stats.pending_correlations == 0, "completed correlation should not remain pending");
 }
 
+void test_parses_fragmented_http_request() {
+  phantom::HttpFragmentAggregator aggregator;
+
+  phantom::HttpEvent first;
+  first.pid = 10;
+  first.socket_cookie = 500;
+  first.direction = phantom::Direction::Recv;
+  first.payload_prefix = "PO";
+
+  phantom::HttpEvent second = first;
+  second.payload_prefix = "ST /orders HTTP/1.1\r\nHost: local\r\n";
+
+  const auto pending = aggregator.observe(first);
+  require(pending.http_kind == phantom::HttpKind::Unknown, "first fragment should remain unknown");
+  require(aggregator.pending_fragments() == 1, "first fragment should be buffered");
+
+  const auto parsed = aggregator.observe(second);
+  require(parsed.http_kind == phantom::HttpKind::Request, "second fragment should complete request parse");
+  require(parsed.method == "POST", "aggregator should parse fragmented method");
+  require(parsed.path == "/orders", "aggregator should parse fragmented path");
+  require(aggregator.pending_fragments() == 0, "completed fragmented request should clear buffer");
+}
+
+void test_parses_fragmented_http_response() {
+  phantom::HttpFragmentAggregator aggregator;
+
+  phantom::HttpEvent first;
+  first.pid = 11;
+  first.socket_cookie = 501;
+  first.direction = phantom::Direction::Send;
+  first.payload_prefix = "HTTP/1.";
+
+  phantom::HttpEvent second = first;
+  second.payload_prefix = "1 503 Service Unavailable\r\n";
+
+  aggregator.observe(first);
+  const auto parsed = aggregator.observe(second);
+  require(parsed.http_kind == phantom::HttpKind::Response, "aggregator should parse fragmented response");
+  require(parsed.status_code == 503, "aggregator should parse fragmented status");
+}
+
 void test_correlates_client_exchange() {
   phantom::HttpCorrelator correlator;
 
@@ -193,6 +235,8 @@ int main() {
   test_event_conversion_and_json();
   test_pipeline_exports();
   test_pipeline_counts_correlations();
+  test_parses_fragmented_http_request();
+  test_parses_fragmented_http_response();
   test_correlates_client_exchange();
   test_correlates_server_exchange();
   return 0;

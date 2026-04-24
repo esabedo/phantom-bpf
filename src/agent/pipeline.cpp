@@ -21,7 +21,8 @@ bool EventPipeline::submit(HttpEvent event) {
   }
 
   {
-    std::lock_guard<std::mutex> lock(correlator_mutex_);
+    std::lock_guard<std::mutex> lock(ingest_mutex_);
+    event = aggregator_.observe(std::move(event));
     if (correlator_.observe(event).has_value()) {
       correlated_.fetch_add(1);
     }
@@ -63,13 +64,14 @@ void EventPipeline::stop() {
 }
 
 PipelineStats EventPipeline::stats() const {
-  std::lock_guard<std::mutex> lock(correlator_mutex_);
+  std::lock_guard<std::mutex> lock(ingest_mutex_);
   return PipelineStats{
       accepted_.load(),
       dropped_.load(),
       exported_.load(),
       correlated_.load(),
       static_cast<std::uint64_t>(correlator_.pending_requests()),
+      static_cast<std::uint64_t>(aggregator_.pending_fragments()),
   };
 }
 

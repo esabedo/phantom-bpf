@@ -5,6 +5,7 @@
 
 #include "bpf/phantom_events.h"
 #include "phantom/bounded_queue.hpp"
+#include "phantom/correlator.hpp"
 #include "phantom/event.hpp"
 #include "phantom/json_exporter.hpp"
 #include "phantom/pipeline.hpp"
@@ -74,7 +75,109 @@ void test_pipeline_exports() {
   require(stats.accepted == 1, "pipeline should accept one event");
   require(stats.dropped == 0, "pipeline should not drop events");
   require(stats.exported == 1, "pipeline should export one event");
+  require(stats.correlated == 0, "single response should not create correlation");
   require(out.str().find("\"status_code\":200") != std::string::npos, "pipeline output should include status");
+}
+
+void test_pipeline_counts_correlations() {
+  std::ostringstream out;
+  phantom::EventPipeline pipeline(8, 2, out);
+  pipeline.start();
+
+  phantom::HttpEvent request;
+  request.timestamp_ns = 10;
+  request.pid = 44;
+  request.tid = 45;
+  request.socket_cookie = 1000;
+  request.direction = phantom::Direction::Send;
+  request.http_kind = phantom::HttpKind::Request;
+  request.method = "GET";
+  request.path = "/ready";
+
+  phantom::HttpEvent response;
+  response.timestamp_ns = 20;
+  response.pid = 44;
+  response.tid = 45;
+  response.socket_cookie = 1000;
+  response.direction = phantom::Direction::Recv;
+  response.http_kind = phantom::HttpKind::Response;
+  response.status_code = 204;
+
+  require(pipeline.submit(request), "pipeline should accept request");
+  require(pipeline.submit(response), "pipeline should accept response");
+  pipeline.stop();
+
+  const auto stats = pipeline.stats();
+  require(stats.accepted == 2, "pipeline should accept request and response");
+  require(stats.correlated == 1, "pipeline should count one correlated exchange");
+  require(stats.pending_correlations == 0, "completed correlation should not remain pending");
+}
+
+void test_correlates_client_exchange() {
+  phantom::HttpCorrelator correlator;
+
+  phantom::HttpEvent request;
+  request.timestamp_ns = 100;
+  request.pid = 42;
+  request.tid = 43;
+  request.socket_cookie = 9001;
+  request.bytes = 80;
+  request.direction = phantom::Direction::Send;
+  request.http_kind = phantom::HttpKind::Request;
+  request.method = "GET";
+  request.path = "/items";
+
+  phantom::HttpEvent response;
+  response.timestamp_ns = 175;
+  response.pid = 42;
+  response.tid = 43;
+  response.socket_cookie = 9001;
+  response.bytes = 256;
+  response.direction = phantom::Direction::Recv;
+  response.http_kind = phantom::HttpKind::Response;
+  response.status_code = 200;
+
+  require(!correlator.observe(request).has_value(), "request should be pending");
+  require(correlator.pending_requests() == 1, "correlator should hold one pending request");
+  const auto exchange = correlator.observe(response);
+  require(exchange.has_value(), "response should complete client exchange");
+  require(exchange->role == phantom::ExchangeRole::Client, "exchange role should be client");
+  require(exchange->duration_ns == 75, "exchange duration should be computed");
+  require(exchange->method == "GET", "exchange should preserve method");
+  require(exchange->path == "/items", "exchange should preserve path");
+  require(exchange->status_code == 200, "exchange should preserve status code");
+  require(correlator.pending_requests() == 0, "completed exchange should clear pending request");
+}
+
+void test_correlates_server_exchange() {
+  phantom::HttpCorrelator correlator;
+
+  phantom::HttpEvent request;
+  request.timestamp_ns = 300;
+  request.pid = 7;
+  request.tid = 8;
+  request.socket_cookie = 1234;
+  request.direction = phantom::Direction::Recv;
+  request.http_kind = phantom::HttpKind::Request;
+  request.method = "POST";
+  request.path = "/submit";
+
+  phantom::HttpEvent response;
+  response.timestamp_ns = 450;
+  response.pid = 7;
+  response.tid = 9;
+  response.socket_cookie = 1234;
+  response.direction = phantom::Direction::Send;
+  response.http_kind = phantom::HttpKind::Response;
+  response.status_code = 201;
+
+  correlator.observe(request);
+  const auto exchange = correlator.observe(response);
+  require(exchange.has_value(), "response should complete server exchange");
+  require(exchange->role == phantom::ExchangeRole::Server, "exchange role should be server");
+  require(exchange->request_tid == 8, "exchange should preserve request tid");
+  require(exchange->response_tid == 9, "exchange should preserve response tid");
+  require(exchange->duration_ns == 150, "server exchange duration should be computed");
 }
 
 }  // namespace
@@ -83,5 +186,8 @@ int main() {
   test_bounded_queue_capacity();
   test_event_conversion_and_json();
   test_pipeline_exports();
+  test_pipeline_counts_correlations();
+  test_correlates_client_exchange();
+  test_correlates_server_exchange();
   return 0;
 }

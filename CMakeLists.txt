@@ -28,6 +28,7 @@ add_bpf_object(
 )
 
 add_library(phantom_agent_core
+  src/agent/correlator.cpp
   src/agent/event.cpp
   src/agent/json_exporter.cpp
   src/agent/pipeline.cpp

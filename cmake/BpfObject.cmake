@@ -11,10 +11,26 @@ function(add_bpf_object)
   find_program(CLANG_EXECUTABLE clang REQUIRED)
   find_program(BPFTOOL_EXECUTABLE bpftool REQUIRED)
 
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+    set(BPF_TARGET_ARCH x86)
+  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+    set(BPF_TARGET_ARCH arm64)
+  else()
+    message(FATAL_ERROR "Unsupported BPF target architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+  endif()
+
   set(GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
   set(VMLINUX_HEADER "${GENERATED_DIR}/vmlinux.h")
   set(BPF_OBJECT "${GENERATED_DIR}/${BPF_OUTPUT_BASENAME}.bpf.o")
   set(BPF_SKELETON "${GENERATED_DIR}/${BPF_OUTPUT_BASENAME}.skel.h")
+  set(BPF_INCLUDE_FLAGS
+    "-I${GENERATED_DIR}"
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
+  )
+
+  if(CMAKE_LIBRARY_ARCHITECTURE AND EXISTS "/usr/include/${CMAKE_LIBRARY_ARCHITECTURE}")
+    list(APPEND BPF_INCLUDE_FLAGS "-I/usr/include/${CMAKE_LIBRARY_ARCHITECTURE}")
+  endif()
 
   file(MAKE_DIRECTORY "${GENERATED_DIR}")
 
@@ -32,10 +48,8 @@ function(add_bpf_object)
       -g
       -O2
       -target bpf
-      -D__TARGET_ARCH_x86
-      -I"${GENERATED_DIR}"
-      -I"${CMAKE_CURRENT_SOURCE_DIR}/include"
-      -I/usr/include/x86_64-linux-gnu
+      "-D__TARGET_ARCH_${BPF_TARGET_ARCH}"
+      ${BPF_INCLUDE_FLAGS}
       -c "${BPF_SOURCE}"
       -o "${BPF_OBJECT}"
     DEPENDS "${BPF_SOURCE}" "${VMLINUX_HEADER}"

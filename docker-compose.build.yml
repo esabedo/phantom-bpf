@@ -9,7 +9,7 @@ services:
       - -lc
       - |
         apt-get update
-        apt-get install -y bpftool clang cmake g++ libbpf-dev llvm make pkg-config
+        apt-get install -y clang cmake g++ libbpf-dev linux-tools-generic llvm make pkg-config
         cmake -S /workspace -B /tmp/phantom-build -DCMAKE_BUILD_TYPE=RelWithDebInfo
         cmake --build /tmp/phantom-build --verbose
         test -x /tmp/phantom-build/phantom-agent

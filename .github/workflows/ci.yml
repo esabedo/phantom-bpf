@@ -17,11 +17,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            bpftool \
             clang \
             cmake \
             g++ \
             libbpf-dev \
+            linux-tools-generic \
             llvm \
             make \
             pkg-config

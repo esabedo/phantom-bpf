@@ -2,6 +2,8 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdarg>
+#include <cstddef>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

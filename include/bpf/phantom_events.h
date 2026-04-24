@@ -1,9 +1,7 @@
 #pragma once
 
 #ifdef __cplusplus
-#include <cstdint>
-using __u32 = std::uint32_t;
-using __u64 = std::uint64_t;
+#include <linux/types.h>
 #else
 #include "vmlinux.h"
 #endif

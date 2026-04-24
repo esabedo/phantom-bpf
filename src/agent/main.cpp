@@ -1,18 +1,19 @@
 #include <atomic>
+#include <algorithm>
 #include <cerrno>
 #include <csignal>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
-#include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
-#include <string>
+#include <thread>
 
 #include <bpf/libbpf.h>
 
 #include "bpf/phantom_events.h"
+#include "phantom/event.hpp"
+#include "phantom/pipeline.hpp"
 #include "phantom_http.skel.h"
 
 namespace {
@@ -23,75 +24,16 @@ void handle_signal(int) {
   g_shutdown.store(true);
 }
 
-std::string json_escape(const char *value, std::size_t max_len) {
-  std::string output;
-  for (std::size_t i = 0; i < max_len && value[i] != '\0'; ++i) {
-    switch (value[i]) {
-      case '\\':
-        output += "\\\\";
-        break;
-      case '"':
-        output += "\\\"";
-        break;
-      case '\n':
-        output += "\\n";
-        break;
-      case '\r':
-        output += "\\r";
-        break;
-      case '\t':
-        output += "\\t";
-        break;
-      default:
-        output += value[i];
-        break;
-    }
-  }
-  return output;
-}
-
-const char *direction_name(std::uint32_t direction) {
-  switch (direction) {
-    case PHANTOM_DIR_SEND:
-      return "send";
-    case PHANTOM_DIR_RECV:
-      return "recv";
-    default:
-      return "unknown";
-  }
-}
-
-const char *http_kind_name(std::uint32_t kind) {
-  switch (kind) {
-    case PHANTOM_HTTP_REQUEST:
-      return "request";
-    case PHANTOM_HTTP_RESPONSE:
-      return "response";
-    default:
-      return "unknown";
-  }
-}
-
-int handle_event(void *, void *data, std::size_t data_size) {
+int handle_event(void *ctx, void *data, std::size_t data_size) {
   if (data_size < sizeof(phantom_http_event)) {
     return 0;
   }
 
   const auto *event = static_cast<const phantom_http_event *>(data);
-
-  std::cout << "{"
-            << "\"timestamp_ns\":" << event->timestamp_ns << ","
-            << "\"pid\":" << event->pid << ","
-            << "\"tid\":" << event->tid << ","
-            << "\"comm\":\"" << json_escape(event->comm, sizeof(event->comm)) << "\","
-            << "\"direction\":\"" << direction_name(event->direction) << "\","
-            << "\"bytes\":" << event->bytes << ","
-            << "\"socket_cookie\":" << event->socket_cookie << ","
-            << "\"http_kind\":\"" << http_kind_name(event->http_kind) << "\","
-            << "\"method\":\"" << json_escape(event->method, sizeof(event->method)) << "\","
-            << "\"path\":\"" << json_escape(event->path, sizeof(event->path)) << "\","
-            << "\"status_code\":" << event->status_code
-            << "}" << std::endl;
+  auto *pipeline = static_cast<phantom::EventPipeline *>(ctx);
+  if (pipeline) {
+    pipeline->submit(phantom::from_bpf_event(*event));
+  }
 
   return 0;
 }
@@ -123,7 +65,11 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  struct ring_buffer *ring = ring_buffer__new(bpf_map__fd(skel->maps.events), handle_event, nullptr, nullptr);
+  const auto worker_count = std::max(1u, std::thread::hardware_concurrency());
+  phantom::EventPipeline pipeline(8192, worker_count, std::cout);
+  pipeline.start();
+
+  struct ring_buffer *ring = ring_buffer__new(bpf_map__fd(skel->maps.events), handle_event, &pipeline, nullptr);
   if (!ring) {
     std::cerr << "failed to create BPF ring buffer" << std::endl;
     phantom_http_bpf__destroy(skel);
@@ -143,6 +89,10 @@ int main() {
   }
 
   ring_buffer__free(ring);
+  pipeline.stop();
+  const auto stats = pipeline.stats();
+  std::cerr << "pipeline stats accepted=" << stats.accepted << " dropped=" << stats.dropped
+            << " exported=" << stats.exported << std::endl;
   phantom_http_bpf__destroy(skel);
   std::cerr << "phantom-agent stopped" << std::endl;
   return EXIT_SUCCESS;

@@ -32,5 +32,8 @@ jobs:
       - name: Build
         run: cmake --build build --verbose
 
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
       - name: Smoke check
         run: test -x build/phantom-agent

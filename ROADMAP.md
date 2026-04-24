@@ -100,15 +100,15 @@ from eBPF to the C++ agent.
 Goal: make ingestion durable under load and correlate network events with
 process/thread/socket context.
 
-- [ ] Build a dedicated ring buffer polling loop with backoff and shutdown
+- [x] Build a dedicated ring buffer polling loop with backoff and shutdown
   coordination.
-- [ ] Add bounded MPSC queues between ingest and parser workers.
-- [ ] Add thread pool for parsing, normalization, and early aggregation.
+- [x] Add bounded MPSC queues between ingest and parser workers.
+- [x] Add thread pool for parsing, normalization, and early aggregation.
 - [ ] Track socket lifecycle and file descriptor ownership.
 - [ ] Track `accept`, `connect`, `close`, `dup`, and `fork/exec` where needed.
-- [ ] Correlate events by PID, TID, socket pointer, FD, and timestamp windows.
-- [ ] Reassemble fragmented HTTP request/response prefixes in userspace.
-- [ ] Add unit tests for parser and correlation state machines.
+- [x] Correlate events by PID, TID, socket pointer, FD, and timestamp windows.
+- [x] Reassemble fragmented HTTP request/response prefixes in userspace.
+- [x] Add unit tests for parser and correlation state machines.
 - [ ] Add docker-compose smoke traffic with Python and Go services.
 - [ ] Tag `v0.2.0`.
 
